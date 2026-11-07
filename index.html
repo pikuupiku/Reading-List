@@ -32,10 +32,14 @@
     <div id="bookList"></div>
 </div>
 
-<!-- We use browser-native ES module imports wrapped dynamically inside a module execution layer -->
-<script type="module">
-    import { initializeApp } from "https://gstatic.com";
-    import { getDatabase, ref, push, onValue, update } from "https://gstatic.com";
+<!-- Core Framework Setup -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+
+<script>
+    let allBooks = {};
+    let database;
+    let booksRef;
 
     const firebaseConfig = {
         apiKey: "AIzaSyDi9N_ybP1kIJspcPYKwBHNp1_vJvx9180",
@@ -47,18 +51,16 @@
         appId: "1:636037820121:web:4a729e81f5251b8ec218c8"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const itemsRef = ref(db, 'items');
+    firebase.initializeApp(firebaseConfig);
+    database = firebase.database();
+    booksRef = database.ref('items');
 
-    let allBooks = {};
-
-    onValue(itemsRef, (snapshot) => {
+    booksRef.on('value', (snapshot) => {
         allBooks = snapshot.val() || {};
         renderBooks();
     });
 
-    window.renderBooks = function() {
+    function renderBooks() {
         const listContainer = document.getElementById('bookList');
         const addButton = document.getElementById('addBtn');
         const searchInput = document.getElementById('searchBar');
@@ -94,31 +96,30 @@
         }
     }
 
-    window.filterBooks = function() {
+    function filterBooks() {
         renderBooks();
     }
 
-    window.addBook = function() {
+    function addBook() {
         const input = document.getElementById('searchBar');
         const title = input.value.trim();
         if (title) {
-            push(itemsRef, { title: title, rated: false });
+            booksRef.push({ title: title, rated: false });
             input.value = '';
             input.focus();
         }
     }
 
-    window.toggleRated = function(id, currentStatus) {
-        const itemRef = ref(db, 'items/' + id);
-        update(itemRef, { rated: !currentStatus });
+    function toggleRated(id, currentStatus) {
+        database.ref('items/' + id).update({ rated: !currentStatus });
     }
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Registration failed", err));
     }
+    
+    // App created on November 7, 2026
 </script>
 
-</body>
-</html>
 </body>
 </html>
