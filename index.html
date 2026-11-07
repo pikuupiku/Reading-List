@@ -32,17 +32,11 @@
     <div id="bookList"></div>
 </div>
 
-<!-- Include stable, trusted Firebase Framework links from cdnjs -->
-<script src="https://cloudflare.com"></script>
-<script src="https://cloudflare.com"></script>
+<!-- We use a unified web module script module that imports firebase safely internally -->
+<script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getDatabase, ref, push, onValue, update } from "https://gstatic.com";
 
-<script>
-    // 1. Declare variables globally so all functions can find them
-    let allBooks = {};
-    let database;
-    let booksRef;
-
-    // 2. Paste your exact configuration details below
     const firebaseConfig = {
         apiKey: "AIzaSyDi9N_ybP1kIJspcPYKwBHNp1_vJvx9180",
         authDomain: "my-reading-list-923cb.firebaseapp.com",
@@ -53,18 +47,19 @@
         appId: "1:636037820121:web:4a729e81f5251b8ec218c8"
     };
 
-    // 3. Initialize Firebase cleanly with no duplicate let/const keywords
-    firebase.initializeApp(firebaseConfig);
-    database = firebase.database();
-    booksRef = database.ref('books');
+    // Initialize modern Firebase components securely
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const booksRef = ref(db, 'books');
 
-    // 4. Listen to database changes in real-time
-    booksRef.on('value', (snapshot) => {
+    let allBooks = {};
+
+    onValue(booksRef, (snapshot) => {
         allBooks = snapshot.val() || {};
         renderBooks();
     });
 
-    function renderBooks() {
+    window.renderBooks = function() {
         const listContainer = document.getElementById('bookList');
         const addButton = document.getElementById('addBtn');
         const searchInput = document.getElementById('searchBar');
@@ -100,33 +95,28 @@
         }
     }
 
-    function filterBooks() {
+    window.filterBooks = function() {
         renderBooks();
     }
 
-    function addBook() {
+    window.addBook = function() {
         const input = document.getElementById('searchBar');
         const title = input.value.trim();
-        
         if (title) {
-            const directBooksRef = firebase.database().ref('books');
-            
-            directBooksRef.push({ title: title, rated: false });
-            
+            push(booksRef, { title: title, rated: false });
             input.value = '';
             input.focus();
         }
     }
 
-    function toggleRated(id, currentStatus) {
-        database.ref('books/' + id).update({ rated: !currentStatus });
+    window.toggleRated = function(id, currentStatus) {
+        const itemRef = ref(db, 'books/' + id);
+        update(itemRef, { rated: !currentStatus });
     }
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Registration failed", err));
     }
-
-    // App created on November 6, 2026
 </script>
 
 </body>
