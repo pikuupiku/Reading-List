@@ -38,7 +38,10 @@
 <script src="https://gstatic.com"></script>
 
 <script>
-    // ⚠️ 
+    let allBooks = {};
+    let database;
+    let booksRef;
+
     const firebaseConfig = {
         apiKey: "AIzaSyDi9N_ybP1kIJspcPYKwBHNp1_vJvx9180",
         authDomain: "my-reading-list-923cb.firebaseapp.com",
@@ -49,12 +52,10 @@
         appId: "1:636037820121:web:4a729e81f5251b8ec218c8"
     };
 
-    let allBooks = {};
-
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const booksRef = database.ref('books');
+    database = firebase.database();
+    booksRef = database.ref('books');
 
     // Automatically listen to database changes in real-time
     booksRef.on('value', (snapshot) => {
