@@ -107,8 +107,12 @@
     function addBook() {
         const input = document.getElementById('searchBar');
         const title = input.value.trim();
+        
         if (title) {
-            booksRef.push({ title: title, rated: false });
+            const directBooksRef = firebase.database().ref('books');
+            
+            directBooksRef.push({ title: title, rated: false });
+            
             input.value = '';
             input.focus();
         }
