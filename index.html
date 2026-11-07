@@ -32,48 +32,36 @@
     <div id="bookList"></div>
 </div>
 
-<!-- ZERO EXTERNAL SCRIPT FILE LINKS FOR THE BROWSER TO BLOCK -->
-<script type="module">
-    // Modern JavaScript modules allow us to load firebase components cleanly inside an isolated block
-    import { initializeApp } from "https://gstatic.com";
-    import { getDatabase, ref, push, onValue, update } from "https://gstatic.com";
+<!-- Load standard Supabase Client library -->
+<script src="https://jsdelivr.net"></script>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDi9N_ybP1kIJspcPYKwBHNp1_vJvx9180",
-        authDomain: "my-reading-list-923cb.firebaseapp.com",
-        databaseURL: "https://my-reading-list-923cb-default-rtdb.firebaseio.com/",
-        projectId: "my-reading-list-923cb",
-        storageBucket: "my-reading-list-923cb.firebasestorage.app",
-        messagingSenderId: "636037820121",
-        appId: "1:636037820121:web:4a729e81f5251b8ec218c8"
-    };
+<script>
+    // ⚠️ REPLACE THESE VALUES WITH YOUR SUPABASE DETAILS FROM STEP 1
+    const SUPABASE_URL = "https://wwaltrpnywwpdjjyjbvp.supabase.co/rest/v1/";
+    const SUPABASE_KEY = "sb_publishable_xwBNeFMlUg3xi5dzHwtInQ_8SgtA7fq";
 
-    // Initialize the modular framework
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const itemsRef = ref(db, 'items');
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let allBooks = [];
 
-    let allBooks = {};
+    async function fetchBooks() {
+        const { data, error } = await supabase.from('books').select('*');
+        if (!error && data) {
+            allBooks = data;
+            renderBooks();
+        }
+    }
 
-    onValue(itemsRef, (snapshot) => {
-        allBooks = snapshot.val() || {};
-        renderBooks();
-    });
-
-    window.renderBooks = function() {
+    function renderBooks() {
         const listContainer = document.getElementById('bookList');
         const addButton = document.getElementById('addBtn');
         const searchInput = document.getElementById('searchBar');
         const filterText = searchInput.value.toLowerCase().trim();
         listContainer.innerHTML = '';
         
-        let booksArray = [];
-        for (let id in allBooks) {
-            booksArray.push({ id: id, ...allBooks[id] });
-        }
-        booksArray.sort((a, b) => a.title.localeCompare(b.title));
+        // Sort items alphabetically
+        allBooks.sort((a, b) => a.title.localeCompare(b.title));
 
-        booksArray.forEach((book) => {
+        allBooks.forEach((book) => {
             if (book.title.toLowerCase().includes(filterText)) {
                 const item = document.createElement('div');
                 item.className = 'book-item';
@@ -81,14 +69,14 @@
                     <span class="book-title">${book.title}</span>
                     <label class="checkbox-wrapper">
                         Rated?
-                        <input type="checkbox" ${book.rated ? 'checked' : ''} onclick="toggleRated('${book.id}', ${book.rated})">
+                        <input type="checkbox" ${book.rated ? 'checked' : ''} onclick="toggleRated(${book.id}, ${book.rated})">
                     </label>
                 `;
                 listContainer.appendChild(item);
             }
         });
 
-        const exactMatch = booksArray.some(b => b.title.toLowerCase() === filterText);
+        const exactMatch = allBooks.some(b => b.title.toLowerCase() === filterText);
         if (filterText.length > 0 && !exactMatch) {
             addButton.classList.add('show');
         } else {
@@ -96,24 +84,29 @@
         }
     }
 
-    window.filterBooks = function() {
+    function filterBooks() {
         renderBooks();
     }
 
-    window.addBook = function() {
+    async function addBook() {
         const input = document.getElementById('searchBar');
         const title = input.value.trim();
         if (title) {
-            push(itemsRef, { title: title, rated: false });
-            input.value = '';
-            input.focus();
+            const { error } = await supabase.from('books').insert([{ title: title, rated: false }]);
+            if (!error) {
+                input.value = '';
+                fetchBooks();
+            }
         }
     }
 
-    window.toggleRated = function(id, currentStatus) {
-        const itemRef = ref(db, 'items/' + id);
-        update(itemRef, { rated: !currentStatus });
+    async function toggleRated(id, currentStatus) {
+        await supabase.from('books').update({ rated: !currentStatus }).eq('id', id);
+        fetchBooks();
     }
+
+    // Initial load from cloud database
+    fetchBooks();
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Registration failed", err));
