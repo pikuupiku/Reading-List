@@ -1,0 +1,17 @@
+{
+  "short_name": "ReadingList",
+  "name": "My Custom Reading List",
+  "icons": [
+    {
+      "src": "https://flaticon.com",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#f5f5f7",
+  "theme-color": "#0071e3",
+  "display": "standalone",
+  "orientation": "portrait"
+}
