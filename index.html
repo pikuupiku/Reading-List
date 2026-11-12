@@ -19,12 +19,14 @@
         .book-title { font-size: 16px; flex: 1; margin-right: 10px; }
         .checkbox-wrapper { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #86868b; }
         input[type="checkbox"] { width: 20px; height: 20px; accent-color: #0071e3; cursor: pointer; }
+        .status { text-align: center; font-size: 13px; color: #86868b; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>📚 My Reading List</h1>
+    <div id="statusMsg" class="status">Loading list...</div>
     <div class="search-box">
         <input type="text" id="searchBar" placeholder="Search or type a new book..." oninput="filterBooks()">
         <button id="addBtn" onclick="addBook()">Add</button>
@@ -32,22 +34,20 @@
     <div id="bookList"></div>
 </div>
 
-<!-- Load standard Supabase Client library -->
-<script src="https://jsdelivr.net"></script>
-
 <script>
-    // ⚠️ REPLACE THESE VALUES WITH YOUR SUPABASE DETAILS FROM STEP 1
-    const SUPABASE_URL = "https://wwaltrpnywwpdjjyjbvp.supabase.co/rest/v1/";
-    const SUPABASE_KEY = "sb_publishable_xwBNeFMlUg3xi5dzHwtInQ_8SgtA7fq";
+    // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL INSIDE THESE QUOTES:
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6_aJVWTi1o3upW7nPAN3hunOiIQMkdinPDdPbUWGC/dev";
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let allBooks = [];
 
-    async function fetchBooks() {
-        const { data, error } = await supabase.from('books').select('*');
-        if (!error && data) {
-            allBooks = data;
+    async function loadBooks() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            allBooks = await response.json();
+            document.getElementById('statusMsg').style.display = 'none';
             renderBooks();
+        } catch (error) {
+            document.getElementById('statusMsg').innerText = "Error loading list. Check your Script URL.";
         }
     }
 
@@ -57,26 +57,26 @@
         const searchInput = document.getElementById('searchBar');
         const filterText = searchInput.value.toLowerCase().trim();
         listContainer.innerHTML = '';
-        
-        // Sort items alphabetically
-        allBooks.sort((a, b) => a.title.localeCompare(b.title));
 
-        allBooks.forEach((book) => {
-            if (book.title.toLowerCase().includes(filterText)) {
+        // Sort alphabetically for display
+        const sortedBooks = [...allBooks].sort((a, b) => a.title.toString().localeCompare(b.title.toString()));
+
+        sortedBooks.forEach((book) => {
+            if (book.title.toString().toLowerCase().includes(filterText)) {
                 const item = document.createElement('div');
                 item.className = 'book-item';
                 item.innerHTML = `
                     <span class="book-title">${book.title}</span>
                     <label class="checkbox-wrapper">
                         Rated?
-                        <input type="checkbox" ${book.rated ? 'checked' : ''} onclick="toggleRated(${book.id}, ${book.rated})">
+                        <input type="checkbox" ${book.rated ? 'checked' : ''} onclick="toggleRated(${book.row}, ${book.rated})">
                     </label>
                 `;
                 listContainer.appendChild(item);
             }
         });
 
-        const exactMatch = allBooks.some(b => b.title.toLowerCase() === filterText);
+        const exactMatch = allBooks.some(b => b.title.toString().toLowerCase() === filterText);
         if (filterText.length > 0 && !exactMatch) {
             addButton.classList.add('show');
         } else {
@@ -91,30 +91,43 @@
     async function addBook() {
         const input = document.getElementById('searchBar');
         const title = input.value.trim();
-        if (title) {
-            const { error } = await supabase.from('books').insert([{ title: title, rated: false }]);
-            if (!error) {
-                input.value = '';
-                fetchBooks();
-            }
-        }
+        if (!title) return;
+
+        // Optimistically update the screen right away so it feels instant
+        allBooks.push({ row: allBooks.length + 2, title: title, rated: false });
+        input.value = '';
+        renderBooks();
+
+        // Save to Google Sheets in the background
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: "add", title: title })
+        });
+        
+        // Refresh accurate row numbers from sheet
+        setTimeout(loadBooks, 1500);
     }
 
-    async function toggleRated(id, currentStatus) {
-        await supabase.from('books').update({ rated: !currentStatus }).eq('id', id);
-        fetchBooks();
+    async function toggleRated(row, currentStatus) {
+        const newStatus = !currentStatus;
+        const book = allBooks.find(b => b.row === row);
+        if (book) book.rated = newStatus;
+
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: "toggle", row: row, rated: newStatus })
+        });
     }
 
-    // Initial load from cloud database
-    fetchBooks();
+    // Start the app
+    loadBooks();
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Registration failed", err));
+        navigator.serviceWorker.register('sw.js').catch(err => console.log("SW failed", err));
     }
 </script>
-
-</body>
-</html>
 
 </body>
 </html>
